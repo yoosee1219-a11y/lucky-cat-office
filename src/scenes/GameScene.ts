@@ -24,6 +24,9 @@ export class GameScene extends Phaser.Scene {
     // 그래픽 객체 생성
     this.gridGraphics = this.add.graphics();
 
+    // 적 경로 시각화 (반투명 선)
+    this.drawEnemyPath();
+
     // 5x5 그리드 렌더링
     this.renderGrid();
 
@@ -31,7 +34,7 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointerdown', this.handlePointerDown, this);
 
     // 디버그 정보 표시
-    this.add.text(10, 10, '운빨냥사원 - MVP v0.3', {
+    this.add.text(10, 10, '운빨냥사원 - MVP v0.4', {
       fontSize: '16px',
       color: '#333333',
       fontFamily: 'Arial',
@@ -98,6 +101,30 @@ export class GameScene extends Phaser.Scene {
 
     // 파괴된 투사체 제거
     this.projectiles = this.projectiles.filter(p => p.active);
+  }
+
+  private drawEnemyPath(): void {
+    const pathGraphics = this.add.graphics();
+
+    // 경로 선 그리기 (반투명 빨간색)
+    pathGraphics.lineStyle(4, 0xff0000, 0.3);
+    pathGraphics.beginPath();
+
+    // 첫 번째 지점에서 시작
+    pathGraphics.moveTo(ENEMY_PATH[0].x, ENEMY_PATH[0].y);
+
+    // 모든 경로 지점 연결
+    for (let i = 1; i < ENEMY_PATH.length; i++) {
+      pathGraphics.lineTo(ENEMY_PATH[i].x, ENEMY_PATH[i].y);
+    }
+
+    pathGraphics.strokePath();
+
+    // 각 경로 지점에 작은 원 표시
+    for (const point of ENEMY_PATH) {
+      pathGraphics.fillStyle(0xff0000, 0.5);
+      pathGraphics.fillCircle(point.x, point.y, 6);
+    }
   }
 
   private renderGrid(): void {
