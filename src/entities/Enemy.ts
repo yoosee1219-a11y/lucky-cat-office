@@ -5,16 +5,18 @@ export class Enemy extends Phaser.GameObjects.Container {
   private healthBar: Phaser.GameObjects.Graphics;
   public maxHealth: number = 3;
   public currentHealth: number = 3;
-  public moveSpeed: number = 30; // pixels per second
-  public targetX: number;
-  public targetY: number;
+  public moveSpeed: number = 50; // pixels per second
+  private path: { x: number; y: number }[];
+  private currentPathIndex: number = 0;
   public isDead: boolean = false;
+  public reachedEnd: boolean = false;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, targetX: number, targetY: number) {
-    super(scene, x, y);
+  constructor(scene: Phaser.Scene, path: { x: number; y: number }[]) {
+    // 경로의 첫 번째 지점에서 시작
+    super(scene, path[0].x, path[0].y);
 
-    this.targetX = targetX;
-    this.targetY = targetY;
+    this.path = path;
+    this.currentPathIndex = 0;
 
     // 적 원 생성 (빨간색)
     this.circle = scene.add.arc(0, 0, 20, 0, 360, false, 0xff4444);
@@ -36,23 +38,34 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   update(delta: number): void {
-    if (this.isDead) return;
+    if (this.isDead || this.reachedEnd) return;
 
-    // HQ를 향해 이동
-    const dx = this.targetX - this.x;
-    const dy = this.targetY - this.y;
+    // 다음 경로 지점이 있는지 확인
+    if (this.currentPathIndex >= this.path.length) {
+      // 경로 끝 도달 (HQ 도달)
+      this.reachedEnd = true;
+      return;
+    }
+
+    // 현재 목표 지점
+    const target = this.path[this.currentPathIndex];
+    const dx = target.x - this.x;
+    const dy = target.y - this.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
-    if (distance > 5) {
-      // 정규화된 방향
-      const dirX = dx / distance;
-      const dirY = dy / distance;
-
-      // 이동
-      const moveDistance = (this.moveSpeed * delta) / 1000;
-      this.x += dirX * moveDistance;
-      this.y += dirY * moveDistance;
+    // 목표 지점에 가까워지면 다음 지점으로
+    if (distance < 10) {
+      this.currentPathIndex++;
+      return;
     }
+
+    // 목표 지점을 향해 이동
+    const dirX = dx / distance;
+    const dirY = dy / distance;
+    const moveDistance = (this.moveSpeed * delta) / 1000;
+
+    this.x += dirX * moveDistance;
+    this.y += dirY * moveDistance;
   }
 
   public takeDamage(amount: number): void {
@@ -111,10 +124,4 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.healthBar.fillRect(barX, barY, barWidth * healthPercent, barHeight);
   }
 
-  public reachedTarget(): boolean {
-    const dx = this.targetX - this.x;
-    const dy = this.targetY - this.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    return distance < 30; // HQ 반경
-  }
 }

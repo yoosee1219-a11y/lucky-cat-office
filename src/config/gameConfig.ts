@@ -21,7 +21,17 @@ export const GAME_CONFIG = {
   height: 844,
   parent: 'game-container',
   backgroundColor: '#f5f5f5',
+  hqMaxHealth: 50, // HQ 체력 (50마리 도달하면 패배)
 };
+
+// 적의 이동 경로 (그리드 바깥쪽을 빙글빙글 돔)
+export const ENEMY_PATH = [
+  { x: 390, y: 200 },   // 1. 시작: 오른쪽 위
+  { x: 390, y: 650 },   // 2. 오른쪽 아래로
+  { x: 50, y: 650 },    // 3. 왼쪽 아래로
+  { x: 50, y: 300 },    // 4. 왼쪽으로 올라감
+  { x: 195, y: 300 },   // 5. 중앙 (HQ)으로
+];
 
 // 색상 설정
 export const COLORS = {

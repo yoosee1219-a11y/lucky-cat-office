@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GRID_CONFIG, COLORS, gridToScreen } from '../config/gameConfig';
+import { GRID_CONFIG, COLORS, GAME_CONFIG, ENEMY_PATH, gridToScreen } from '../config/gameConfig';
 import { Unit } from '../entities/Unit';
 import { Enemy } from '../entities/Enemy';
 import { Projectile } from '../entities/Projectile';
@@ -10,8 +10,8 @@ export class GameScene extends Phaser.Scene {
   private enemies: Enemy[] = [];
   private projectiles: Projectile[] = [];
   private occupiedCells: Set<string> = new Set();
-  private hqX: number = 0;
-  private hqY: number = 0;
+  private hqHealth: number = GAME_CONFIG.hqMaxHealth;
+  private hqHealthText!: Phaser.GameObjects.Text;
 
   constructor() {
     super('GameScene');
@@ -24,11 +24,6 @@ export class GameScene extends Phaser.Scene {
     // 그래픽 객체 생성
     this.gridGraphics = this.add.graphics();
 
-    // HQ 위치 계산
-    const hqScreenPos = gridToScreen(GRID_CONFIG.hqPosition.row, GRID_CONFIG.hqPosition.col);
-    this.hqX = hqScreenPos.x + GRID_CONFIG.cellSize / 2;
-    this.hqY = hqScreenPos.y + GRID_CONFIG.cellSize / 2;
-
     // 5x5 그리드 렌더링
     this.renderGrid();
 
@@ -36,10 +31,18 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointerdown', this.handlePointerDown, this);
 
     // 디버그 정보 표시
-    this.add.text(10, 10, '운빨냥사원 - MVP v0.2', {
+    this.add.text(10, 10, '운빨냥사원 - MVP v0.3', {
       fontSize: '16px',
       color: '#333333',
       fontFamily: 'Arial',
+    });
+
+    // HQ 체력 표시
+    this.hqHealthText = this.add.text(10, 35, `HQ 체력: ${this.hqHealth}/${GAME_CONFIG.hqMaxHealth}`, {
+      fontSize: '16px',
+      color: '#ff0000',
+      fontFamily: 'Arial',
+      fontStyle: 'bold',
     });
 
     // 하단 설명
@@ -49,21 +52,24 @@ export class GameScene extends Phaser.Scene {
       fontFamily: 'Arial',
     }).setOrigin(0.5);
 
-    // 5초 후 적 생성
-    this.time.delayedCall(5000, () => {
-      this.spawnEnemy();
+    // 웨이브 시스템: 3초마다 적 생성
+    this.time.addEvent({
+      delay: 3000,
+      callback: this.spawnEnemy,
+      callbackScope: this,
+      loop: true,
     });
   }
 
   update(_time: number, delta: number): void {
     // 적 업데이트
     for (const enemy of this.enemies) {
-      if (!enemy.isDead) {
+      if (!enemy.isDead && !enemy.reachedEnd) {
         enemy.update(delta);
 
         // HQ 도달 확인
-        if (enemy.reachedTarget()) {
-          console.log('적이 HQ에 도달! - GAME OVER');
+        if (enemy.reachedEnd) {
+          this.onEnemyReachedHQ();
           enemy.destroy();
         }
       }
@@ -177,15 +183,56 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnEnemy(): void {
-    // 화면 오른쪽 끝에서 생성
-    const startX = 390; // 화면 너비
-    const startY = 400; // 중간 높이
-
-    // HQ를 목표로 생성
-    const enemy = new Enemy(this, startX, startY, this.hqX, this.hqY);
+    // 경로 기반으로 적 생성
+    const enemy = new Enemy(this, ENEMY_PATH);
     this.enemies.push(enemy);
 
-    console.log(`적 생성! HQ 목표: (${this.hqX}, ${this.hqY})`);
+    console.log(`적 생성! 현재 적 수: ${this.enemies.length}`);
+  }
+
+  private onEnemyReachedHQ(): void {
+    // HQ 체력 감소
+    this.hqHealth--;
+    this.hqHealthText.setText(`HQ 체력: ${this.hqHealth}/${GAME_CONFIG.hqMaxHealth}`);
+
+    console.log(`적이 HQ 도달! 남은 체력: ${this.hqHealth}`);
+
+    // 게임 오버 확인
+    if (this.hqHealth <= 0) {
+      this.gameOver();
+    }
+  }
+
+  private gameOver(): void {
+    console.log('GAME OVER!');
+
+    // 게임 일시정지
+    this.scene.pause();
+
+    // 게임 오버 텍스트 표시
+    const gameOverText = this.add.text(195, 400, 'GAME OVER', {
+      fontSize: '48px',
+      color: '#ff0000',
+      fontFamily: 'Arial',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    gameOverText.setDepth(1000);
+
+    // 재시작 버튼
+    const restartText = this.add.text(195, 480, '다시 시작 (클릭)', {
+      fontSize: '24px',
+      color: '#ffffff',
+      backgroundColor: '#333333',
+      padding: { x: 20, y: 10 },
+      fontFamily: 'Arial',
+    }).setOrigin(0.5).setInteractive();
+
+    restartText.setDepth(1000);
+
+    restartText.on('pointerdown', () => {
+      this.scene.restart();
+    });
   }
 
   private screenToGrid(x: number, y: number): { row: number; col: number } | null {
