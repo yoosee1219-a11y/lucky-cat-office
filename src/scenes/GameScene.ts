@@ -1,11 +1,15 @@
 import Phaser from 'phaser';
 import { GRID_CONFIG, COLORS, gridToScreen } from '../config/gameConfig';
 import { Unit } from '../entities/Unit';
+import { Enemy } from '../entities/Enemy';
 
 export class GameScene extends Phaser.Scene {
   private gridGraphics!: Phaser.GameObjects.Graphics;
   private units: Unit[] = [];
+  private enemies: Enemy[] = [];
   private occupiedCells: Set<string> = new Set();
+  private hqX: number = 0;
+  private hqY: number = 0;
 
   constructor() {
     super('GameScene');
@@ -18,6 +22,11 @@ export class GameScene extends Phaser.Scene {
     // 그래픽 객체 생성
     this.gridGraphics = this.add.graphics();
 
+    // HQ 위치 계산
+    const hqScreenPos = gridToScreen(GRID_CONFIG.hqPosition.row, GRID_CONFIG.hqPosition.col);
+    this.hqX = hqScreenPos.x + GRID_CONFIG.cellSize / 2;
+    this.hqY = hqScreenPos.y + GRID_CONFIG.cellSize / 2;
+
     // 5x5 그리드 렌더링
     this.renderGrid();
 
@@ -25,18 +34,41 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointerdown', this.handlePointerDown, this);
 
     // 디버그 정보 표시
-    this.add.text(10, 10, '운빨냥사원 - 프로토타입 v1', {
+    this.add.text(10, 10, '운빨냥사원 - MVP v0.2', {
       fontSize: '16px',
       color: '#333333',
       fontFamily: 'Arial',
     });
 
     // 하단 설명
-    this.add.text(195, 800, '그리드를 클릭해서 유닛 배치', {
+    this.add.text(195, 800, '유닛 배치하고 적을 막으세요!', {
       fontSize: '14px',
       color: '#666666',
       fontFamily: 'Arial',
     }).setOrigin(0.5);
+
+    // 5초 후 적 생성
+    this.time.delayedCall(5000, () => {
+      this.spawnEnemy();
+    });
+  }
+
+  update(_time: number, delta: number): void {
+    // 적 업데이트
+    for (const enemy of this.enemies) {
+      if (!enemy.isDead) {
+        enemy.update(delta);
+
+        // HQ 도달 확인
+        if (enemy.reachedTarget()) {
+          console.log('적이 HQ에 도달! - GAME OVER');
+          enemy.destroy();
+        }
+      }
+    }
+
+    // 죽은 적 제거
+    this.enemies = this.enemies.filter(e => e.active);
   }
 
   private renderGrid(): void {
@@ -119,6 +151,18 @@ export class GameScene extends Phaser.Scene {
     this.occupiedCells.add(cellKey);
 
     console.log(`유닛 배치: (${row}, ${col}), 총 유닛 수: ${this.units.length}`);
+  }
+
+  private spawnEnemy(): void {
+    // 화면 오른쪽 끝에서 생성
+    const startX = 390; // 화면 너비
+    const startY = 400; // 중간 높이
+
+    // HQ를 목표로 생성
+    const enemy = new Enemy(this, startX, startY, this.hqX, this.hqY);
+    this.enemies.push(enemy);
+
+    console.log(`적 생성! HQ 목표: (${this.hqX}, ${this.hqY})`);
   }
 
   private screenToGrid(x: number, y: number): { row: number; col: number } | null {
