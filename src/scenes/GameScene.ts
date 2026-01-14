@@ -1,8 +1,11 @@
 import Phaser from 'phaser';
 import { GRID_CONFIG, COLORS, gridToScreen } from '../config/gameConfig';
+import { Unit } from '../entities/Unit';
 
 export class GameScene extends Phaser.Scene {
   private gridGraphics!: Phaser.GameObjects.Graphics;
+  private units: Unit[] = [];
+  private occupiedCells: Set<string> = new Set();
 
   constructor() {
     super('GameScene');
@@ -29,7 +32,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     // 하단 설명
-    this.add.text(195, 800, '그리드를 클릭하세요', {
+    this.add.text(195, 800, '그리드를 클릭해서 유닛 배치', {
       fontSize: '14px',
       color: '#666666',
       fontFamily: 'Arial',
@@ -81,24 +84,41 @@ export class GameScene extends Phaser.Scene {
     const gridPos = this.screenToGrid(x, y);
 
     if (gridPos) {
-      console.log(`클릭: 그리드 (${gridPos.row}, ${gridPos.col})`);
+      const { row, col } = gridPos;
+      const cellKey = `${row},${col}`;
 
-      // 시각적 피드백
-      const screenPos = gridToScreen(gridPos.row, gridPos.col);
-      const highlight = this.add.rectangle(
-        screenPos.x,
-        screenPos.y,
-        GRID_CONFIG.cellSize,
-        GRID_CONFIG.cellSize,
-        0x00ff00,
-        0.3
-      ).setOrigin(0);
+      // HQ 셀인지 확인
+      const isHQ = row === GRID_CONFIG.hqPosition.row && col === GRID_CONFIG.hqPosition.col;
+      if (isHQ) {
+        console.log('HQ 셀에는 유닛 배치 불가');
+        return;
+      }
 
-      // 1초 후 제거
-      this.time.delayedCall(1000, () => {
-        highlight.destroy();
-      });
+      // 이미 유닛이 있는지 확인
+      if (this.occupiedCells.has(cellKey)) {
+        console.log('이미 유닛이 있는 셀');
+        return;
+      }
+
+      // 유닛 배치
+      this.placeUnit(row, col);
     }
+  }
+
+  private placeUnit(row: number, col: number): void {
+    const screenPos = gridToScreen(row, col);
+    const centerX = screenPos.x + GRID_CONFIG.cellSize / 2;
+    const centerY = screenPos.y + GRID_CONFIG.cellSize / 2;
+
+    // 유닛 생성
+    const unit = new Unit(this, centerX, centerY, row, col);
+    this.units.push(unit);
+
+    // 셀 점유 표시
+    const cellKey = `${row},${col}`;
+    this.occupiedCells.add(cellKey);
+
+    console.log(`유닛 배치: (${row}, ${col}), 총 유닛 수: ${this.units.length}`);
   }
 
   private screenToGrid(x: number, y: number): { row: number; col: number } | null {
