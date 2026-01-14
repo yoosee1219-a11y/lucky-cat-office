@@ -2,11 +2,13 @@ import Phaser from 'phaser';
 import { GRID_CONFIG, COLORS, gridToScreen } from '../config/gameConfig';
 import { Unit } from '../entities/Unit';
 import { Enemy } from '../entities/Enemy';
+import { Projectile } from '../entities/Projectile';
 
 export class GameScene extends Phaser.Scene {
   private gridGraphics!: Phaser.GameObjects.Graphics;
   private units: Unit[] = [];
   private enemies: Enemy[] = [];
+  private projectiles: Projectile[] = [];
   private occupiedCells: Set<string> = new Set();
   private hqX: number = 0;
   private hqY: number = 0;
@@ -67,8 +69,29 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // 유닛 자동 공격
+    for (const unit of this.units) {
+      if (unit.canAttack()) {
+        const target = unit.findNearestEnemy(this.enemies);
+        if (target) {
+          const projectile = unit.attack(target);
+          this.projectiles.push(projectile);
+        }
+      }
+    }
+
+    // 투사체 업데이트
+    for (const projectile of this.projectiles) {
+      if (projectile.active) {
+        projectile.update(delta);
+      }
+    }
+
     // 죽은 적 제거
     this.enemies = this.enemies.filter(e => e.active);
+
+    // 파괴된 투사체 제거
+    this.projectiles = this.projectiles.filter(p => p.active);
   }
 
   private renderGrid(): void {

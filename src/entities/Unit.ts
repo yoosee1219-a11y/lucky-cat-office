@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { Enemy } from './Enemy';
+import { Projectile } from './Projectile';
 
 export class Unit extends Phaser.GameObjects.Container {
   private circle: Phaser.GameObjects.Arc;
@@ -38,10 +40,32 @@ export class Unit extends Phaser.GameObjects.Container {
     return currentTime - this.lastAttackTime >= this.attackCooldown;
   }
 
-  public attack(_target: Phaser.GameObjects.GameObject): void {
+  public attack(target: Enemy): Projectile {
     this.lastAttackTime = this.scene.time.now;
 
-    // 투사체 발사 (나중에 구현)
-    console.log('Unit attacks!');
+    // 투사체 생성 및 발사
+    const projectile = new Projectile(this.scene, this.x, this.y, target, this.attackDamage);
+
+    return projectile;
+  }
+
+  public findNearestEnemy(enemies: Enemy[]): Enemy | null {
+    let nearest: Enemy | null = null;
+    let minDistance = this.attackRange;
+
+    for (const enemy of enemies) {
+      if (enemy.isDead || !enemy.active) continue;
+
+      const dx = enemy.x - this.x;
+      const dy = enemy.y - this.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearest = enemy;
+      }
+    }
+
+    return nearest;
   }
 }
